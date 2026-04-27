@@ -2,6 +2,16 @@
 
 A simple FastAPI application with PostgreSQL-backed CRUD for records.
 
+## Tech stack
+
+- Python 3.12+
+- FastAPI
+- Uvicorn
+- SQLAlchemy
+- PostgreSQL via `psycopg2-binary`
+- `python-dotenv` for environment configuration
+- `pytest` and `httpx` for testing
+
 ## Setup
 
 1. Install `uv` if you don't already have it:
