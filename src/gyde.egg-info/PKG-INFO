@@ -1,0 +1,80 @@
+Metadata-Version: 2.4
+Name: gyde
+Version: 0.1.0
+Summary: Gyde FastAPI CRUD Service
+Author-email: Your Name <you@example.com>
+License: MIT
+Keywords: fastapi,sqlalchemy,crud
+Requires-Python: <4.0,>=3.12
+Description-Content-Type: text/markdown
+Requires-Dist: fastapi<0.101.0,>=0.100.0
+Requires-Dist: uvicorn[standard]<0.24.0,>=0.23.0
+Requires-Dist: sqlalchemy<3.0,>=2.0
+Requires-Dist: psycopg2-binary<3.0,>=2.9
+Requires-Dist: python-dotenv<2.0,>=1.0
+Provides-Extra: dev
+Requires-Dist: pytest<10.0,>=9.0; extra == "dev"
+Requires-Dist: httpx<0.28,>=0.27; extra == "dev"
+
+# Gyde FastAPI CRUD Service
+
+A simple FastAPI application with PostgreSQL-backed CRUD for records.
+
+## Setup
+
+1. Install `uv` if you don't already have it:
+   ```bash
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   ```
+
+2. Create a local environment file and configure the database URL:
+   ```bash
+   cp .env.example .env
+   ```
+
+   The default connection string is:
+   ```text
+   postgresql://postgres:postgres@localhost:5432/postgres
+   ```
+
+3. Initialize the uv environment and install dependencies:
+   ```bash
+   uv sync
+   ```
+
+4. Start a local PostgreSQL database using Docker Compose (optional but recommended):
+   ```bash
+   docker compose up -d
+   ```
+
+5. Run the app with uv-managed dependencies:
+   ```bash
+   uv run uvicorn gyde.main:app --reload
+   ```
+
+## Run tests
+
+Use the uv environment to run the test suite:
+```bash
+uv run pytest
+```
+
+## Load sample test data
+
+Start the API and then run:
+```bash
+uv run python load_test_data.py
+```
+
+To load custom records from a JSON file:
+```bash
+uv run python load_test_data.py --file sample_records.json
+```
+
+## Endpoints
+
+- `POST /records` - create/upload a record
+- `GET /records` - read all records
+- `GET /records/{record_id}` - read a single record
+- `PUT /records/{record_id}` - update a record
+- `DELETE /records/{record_id}` - delete a record

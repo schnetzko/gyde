@@ -1,0 +1,14 @@
+README.md
+pyproject.toml
+src/gyde/__init__.py
+src/gyde/crud.py
+src/gyde/database.py
+src/gyde/main.py
+src/gyde/models.py
+src/gyde/schemas.py
+src/gyde.egg-info/PKG-INFO
+src/gyde.egg-info/SOURCES.txt
+src/gyde.egg-info/dependency_links.txt
+src/gyde.egg-info/requires.txt
+src/gyde.egg-info/top_level.txt
+tests/test_main.py
