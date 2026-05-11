@@ -106,3 +106,63 @@ def test_load_test_data_via_endpoints():
         assert len(db_records) == len(sample_records)
         assert [record.description for record in db_records] == [record["description"] for record in sample_records]
         assert [record.number_of_courses for record in db_records] == [record["number_of_courses"] for record in sample_records]
+
+
+def test_document_crud_lifecycle():
+    pdf_bytes = b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n1 0 obj\n<< /Type /Catalog >>\nendobj\nxref\n0 1\n0000000000 65535 f \ntrailer\n<< /Root 1 0 R >>\nstartxref\n9\n%%EOF"
+
+    create_response = client.post(
+        "/documents",
+        data={
+            "customer_id": "CUST-001",
+            "title": "Project Proposal",
+            "short_description": "A short project summary.",
+        },
+        files={"document": ("proposal.pdf", pdf_bytes, "application/pdf")},
+    )
+    assert create_response.status_code == 201
+    document_meta = create_response.json()
+    assert document_meta["customer_id"] == "CUST-001"
+    assert document_meta["title"] == "Project Proposal"
+    assert document_meta["short_description"] == "A short project summary."
+    assert "id" in document_meta
+
+    document_id = document_meta["id"]
+
+    list_response = client.get("/documents")
+    assert list_response.status_code == 200
+    documents = list_response.json()
+    assert len(documents) == 1
+    assert documents[0]["id"] == document_id
+
+    get_pdf = client.get(f"/documents/{document_id}")
+    assert get_pdf.status_code == 200
+    assert get_pdf.headers["content-type"] == "application/pdf"
+    assert get_pdf.content == pdf_bytes
+
+    updated_pdf_bytes = b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n1 0 obj\n<< /Type /Catalog >>\nendobj\nxref\n0 1\n0000000000 65535 f \ntrailer\n<< /Root 1 0 R >>\nstartxref\n9\n%%EOF\n"
+    update_response = client.put(
+        f"/documents/{document_id}",
+        data={
+            "customer_id": "CUST-002",
+            "title": "Project Proposal v2",
+        },
+        files={"document": ("proposal_v2.pdf", updated_pdf_bytes, "application/pdf")},
+    )
+    assert update_response.status_code == 200
+    updated_meta = update_response.json()
+    assert updated_meta["customer_id"] == "CUST-002"
+    assert updated_meta["title"] == "Project Proposal v2"
+
+    get_updated_pdf = client.get(f"/documents/{document_id}")
+    assert get_updated_pdf.status_code == 200
+    assert get_updated_pdf.headers["content-type"] == "application/pdf"
+    assert get_updated_pdf.content == updated_pdf_bytes
+
+    delete_response = client.delete(f"/documents/{document_id}")
+    assert delete_response.status_code == 204
+    assert delete_response.text == ""
+
+    missing_response = client.get(f"/documents/{document_id}")
+    assert missing_response.status_code == 404
+    assert missing_response.json()["detail"] == "Document not found"

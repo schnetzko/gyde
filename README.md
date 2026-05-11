@@ -70,3 +70,8 @@ uv run python load_test_data.py --file sample_records.json
 - `GET /records/{record_id}` - read a single record
 - `PUT /records/{record_id}` - update a record
 - `DELETE /records/{record_id}` - delete a record
+- `POST /documents` - upload a PDF document with metadata (customer_id, title, short_description)
+- `GET /documents` - list saved document metadata
+- `GET /documents/{document_id}` - download a saved PDF document
+- `PUT /documents/{document_id}` - update document metadata or PDF file
+- `DELETE /documents/{document_id}` - delete a saved document

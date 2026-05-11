@@ -12,6 +12,7 @@ Requires-Dist: uvicorn[standard]<0.24.0,>=0.23.0
 Requires-Dist: sqlalchemy<3.0,>=2.0
 Requires-Dist: psycopg2-binary<3.0,>=2.9
 Requires-Dist: python-dotenv<2.0,>=1.0
+Requires-Dist: python-multipart<2.0,>=0.0.6
 Provides-Extra: dev
 Requires-Dist: pytest<10.0,>=9.0; extra == "dev"
 Requires-Dist: httpx<0.28,>=0.27; extra == "dev"
@@ -19,6 +20,16 @@ Requires-Dist: httpx<0.28,>=0.27; extra == "dev"
 # Gyde FastAPI CRUD Service
 
 A simple FastAPI application with PostgreSQL-backed CRUD for records.
+
+## Tech stack
+
+- Python 3.12+
+- FastAPI
+- Uvicorn
+- SQLAlchemy
+- PostgreSQL via `psycopg2-binary`
+- `python-dotenv` for environment configuration
+- `pytest` and `httpx` for testing
 
 ## Setup
 
@@ -78,3 +89,8 @@ uv run python load_test_data.py --file sample_records.json
 - `GET /records/{record_id}` - read a single record
 - `PUT /records/{record_id}` - update a record
 - `DELETE /records/{record_id}` - delete a record
+- `POST /documents` - upload a PDF document with metadata (customer_id, title, short_description)
+- `GET /documents` - list saved document metadata
+- `GET /documents/{document_id}` - download a saved PDF document
+- `PUT /documents/{document_id}` - update document metadata or PDF file
+- `DELETE /documents/{document_id}` - delete a saved document

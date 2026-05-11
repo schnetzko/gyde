@@ -22,3 +22,26 @@ class RecordResponse(RecordBase):
 
     class Config:
         orm_mode = True
+
+
+class DocumentBase(BaseModel):
+    customer_id: str = Field(..., title="Customer ID")
+    title: str = Field(..., title="Title")
+    short_description: str = Field(..., title="Short Description")
+
+
+class DocumentCreate(DocumentBase):
+    pass
+
+
+class DocumentUpdate(BaseModel):
+    customer_id: Optional[str] = Field(None, title="Customer ID")
+    title: Optional[str] = Field(None, title="Title")
+    short_description: Optional[str] = Field(None, title="Short Description")
+
+
+class DocumentResponse(DocumentBase):
+    id: int
+
+    class Config:
+        orm_mode = True
