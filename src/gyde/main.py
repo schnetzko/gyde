@@ -12,7 +12,7 @@ from .database import Base, engine, get_db
 
 models.Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Gyde Record API")
+app = FastAPI(title="Gyde Multitenant API")
 
 logger = logging.getLogger("gyde")
 security_logger = logging.getLogger("gyde.security")
@@ -62,112 +62,507 @@ def read_root(request: Request):
         get_client_ip(request),
         request.url.path,
     )
-    return {"message": "Gyde Record API is running"}
+    return {"message": "Gyde Multitenant API is running"}
 
 
-@app.post("/records", response_model=schemas.RecordResponse, status_code=201)
-def upload_data(
-    record: schemas.RecordCreate,
+# Tenant endpoints
+@app.post("/tenants", response_model=schemas.TenantResponse, status_code=201)
+def create_tenant(
+    tenant: schemas.TenantCreate,
     db: Session = Depends(get_db),
     request: Request = None,
 ):
     client_ip = get_client_ip(request)
     security_logger.info(
-        "SECURITY_EVENT=create_record client_ip=%s description=%s number_of_courses=%s",
+        "SECURITY_EVENT=create_tenant client_ip=%s name=%s",
         client_ip,
-        record.description,
-        record.number_of_courses,
+        tenant.name,
     )
-    return crud.create_record(db=db, record=record)
+    return crud.create_tenant(db=db, tenant=tenant)
 
 
-@app.get("/records", response_model=List[schemas.RecordResponse])
-def read_data(db: Session = Depends(get_db), request: Request = None):
+@app.get("/tenants", response_model=List[schemas.TenantResponse])
+def list_tenants(db: Session = Depends(get_db), request: Request = None):
     security_logger.info(
-        "SECURITY_EVENT=list_records client_ip=%s path=%s",
+        "SECURITY_EVENT=list_tenants client_ip=%s path=%s",
         get_client_ip(request),
         request.url.path,
     )
-    return crud.get_records(db=db)
+    return crud.get_tenants(db=db)
 
 
-@app.get("/records/{record_id}", response_model=schemas.RecordResponse)
-def read_single_data(
-    record_id: int,
+@app.get("/tenants/{tenant_id}", response_model=schemas.TenantResponse)
+def read_tenant(
+    tenant_id: int,
     db: Session = Depends(get_db),
     request: Request = None,
 ):
     client_ip = get_client_ip(request)
-    db_record = crud.get_record(db=db, record_id=record_id)
-    if db_record is None:
+    db_tenant = crud.get_tenant(db=db, tenant_id=tenant_id)
+    if db_tenant is None:
         security_logger.warning(
-            "SECURITY_EVENT=read_record_failed client_ip=%s record_id=%s",
+            "SECURITY_EVENT=read_tenant_failed client_ip=%s tenant_id=%s",
             client_ip,
-            record_id,
+            tenant_id,
         )
-        raise HTTPException(status_code=404, detail="Record not found")
+        raise HTTPException(status_code=404, detail="Tenant not found")
 
     security_logger.info(
-        "SECURITY_EVENT=read_record_success client_ip=%s record_id=%s",
+        "SECURITY_EVENT=read_tenant_success client_ip=%s tenant_id=%s",
         client_ip,
-        record_id,
+        tenant_id,
     )
-    return db_record
+    return db_tenant
 
 
-@app.put("/records/{record_id}", response_model=schemas.RecordResponse)
-def update_data(
-    record_id: int,
-    record: schemas.RecordUpdate,
+@app.put("/tenants/{tenant_id}", response_model=schemas.TenantResponse)
+def update_tenant(
+    tenant_id: int,
+    tenant: schemas.TenantUpdate,
     db: Session = Depends(get_db),
     request: Request = None,
 ):
     client_ip = get_client_ip(request)
-    db_record = crud.update_record(db=db, record_id=record_id, record_update=record)
-    if db_record is None:
+    db_tenant = crud.update_tenant(db=db, tenant_id=tenant_id, tenant_update=tenant)
+    if db_tenant is None:
         security_logger.warning(
-            "SECURITY_EVENT=update_record_failed client_ip=%s record_id=%s",
+            "SECURITY_EVENT=update_tenant_failed client_ip=%s tenant_id=%s",
             client_ip,
-            record_id,
+            tenant_id,
         )
-        raise HTTPException(status_code=404, detail="Record not found")
+        raise HTTPException(status_code=404, detail="Tenant not found")
 
     security_logger.info(
-        "SECURITY_EVENT=update_record_success client_ip=%s record_id=%s updated_fields=%s",
+        "SECURITY_EVENT=update_tenant_success client_ip=%s tenant_id=%s",
         client_ip,
-        record_id,
-        {"description": record.description, "number_of_courses": record.number_of_courses},
+        tenant_id,
     )
-    return db_record
+    return db_tenant
 
 
-@app.delete("/records/{record_id}", status_code=204)
-def delete_data(
-    record_id: int,
+@app.delete("/tenants/{tenant_id}", status_code=204)
+def delete_tenant(
+    tenant_id: int,
     db: Session = Depends(get_db),
     request: Request = None,
 ):
     client_ip = get_client_ip(request)
-    deleted = crud.delete_record(db=db, record_id=record_id)
+    deleted = crud.delete_tenant(db=db, tenant_id=tenant_id)
     if not deleted:
         security_logger.warning(
-            "SECURITY_EVENT=delete_record_failed client_ip=%s record_id=%s",
+            "SECURITY_EVENT=delete_tenant_failed client_ip=%s tenant_id=%s",
             client_ip,
-            record_id,
+            tenant_id,
         )
-        raise HTTPException(status_code=404, detail="Record not found")
+        raise HTTPException(status_code=404, detail="Tenant not found")
 
     security_logger.info(
-        "SECURITY_EVENT=delete_record_success client_ip=%s record_id=%s",
+        "SECURITY_EVENT=delete_tenant_success client_ip=%s tenant_id=%s",
         client_ip,
-        record_id,
+        tenant_id,
     )
     return None
 
 
-@app.post("/documents", response_model=schemas.DocumentResponse, status_code=201)
+# Contact Person endpoints
+@app.post("/tenants/{tenant_id}/contacts", response_model=schemas.ContactPersonResponse, status_code=201)
+def create_contact_person(
+    tenant_id: int,
+    contact: schemas.ContactPersonCreate,
+    db: Session = Depends(get_db),
+    request: Request = None,
+):
+    if contact.tenant_id != tenant_id:
+        raise HTTPException(status_code=400, detail="Tenant ID mismatch")
+
+    client_ip = get_client_ip(request)
+    security_logger.info(
+        "SECURITY_EVENT=create_contact_person client_ip=%s tenant_id=%s email=%s",
+        client_ip,
+        tenant_id,
+        contact.email,
+    )
+    return crud.create_contact_person(db=db, contact=contact)
+
+
+@app.get("/tenants/{tenant_id}/contacts", response_model=List[schemas.ContactPersonResponse])
+def list_contact_persons(
+    tenant_id: int,
+    db: Session = Depends(get_db),
+    request: Request = None,
+):
+    security_logger.info(
+        "SECURITY_EVENT=list_contact_persons client_ip=%s tenant_id=%s",
+        get_client_ip(request),
+        tenant_id,
+    )
+    return crud.get_contact_persons_by_tenant(db=db, tenant_id=tenant_id)
+
+
+@app.get("/tenants/{tenant_id}/contacts/{contact_id}", response_model=schemas.ContactPersonResponse)
+def read_contact_person(
+    tenant_id: int,
+    contact_id: int,
+    db: Session = Depends(get_db),
+    request: Request = None,
+):
+    client_ip = get_client_ip(request)
+    db_contact = crud.get_contact_person(db=db, contact_id=contact_id)
+    if db_contact is None or db_contact.tenant_id != tenant_id:
+        security_logger.warning(
+            "SECURITY_EVENT=read_contact_person_failed client_ip=%s tenant_id=%s contact_id=%s",
+            client_ip,
+            tenant_id,
+            contact_id,
+        )
+        raise HTTPException(status_code=404, detail="Contact person not found")
+
+    security_logger.info(
+        "SECURITY_EVENT=read_contact_person_success client_ip=%s tenant_id=%s contact_id=%s",
+        client_ip,
+        tenant_id,
+        contact_id,
+    )
+    return db_contact
+
+
+@app.put("/tenants/{tenant_id}/contacts/{contact_id}", response_model=schemas.ContactPersonResponse)
+def update_contact_person(
+    tenant_id: int,
+    contact_id: int,
+    contact: schemas.ContactPersonUpdate,
+    db: Session = Depends(get_db),
+    request: Request = None,
+):
+    client_ip = get_client_ip(request)
+    db_contact = crud.get_contact_person(db=db, contact_id=contact_id)
+    if db_contact is None or db_contact.tenant_id != tenant_id:
+        security_logger.warning(
+            "SECURITY_EVENT=update_contact_person_failed client_ip=%s tenant_id=%s contact_id=%s",
+            client_ip,
+            tenant_id,
+            contact_id,
+        )
+        raise HTTPException(status_code=404, detail="Contact person not found")
+
+    updated_contact = crud.update_contact_person(db=db, contact_id=contact_id, contact_update=contact)
+    security_logger.info(
+        "SECURITY_EVENT=update_contact_person_success client_ip=%s tenant_id=%s contact_id=%s",
+        client_ip,
+        tenant_id,
+        contact_id,
+    )
+    return updated_contact
+
+
+@app.delete("/tenants/{tenant_id}/contacts/{contact_id}", status_code=204)
+def delete_contact_person(
+    tenant_id: int,
+    contact_id: int,
+    db: Session = Depends(get_db),
+    request: Request = None,
+):
+    client_ip = get_client_ip(request)
+    db_contact = crud.get_contact_person(db=db, contact_id=contact_id)
+    if db_contact is None or db_contact.tenant_id != tenant_id:
+        security_logger.warning(
+            "SECURITY_EVENT=delete_contact_person_failed client_ip=%s tenant_id=%s contact_id=%s",
+            client_ip,
+            tenant_id,
+            contact_id,
+        )
+        raise HTTPException(status_code=404, detail="Contact person not found")
+
+    deleted = crud.delete_contact_person(db=db, contact_id=contact_id)
+    security_logger.info(
+        "SECURITY_EVENT=delete_contact_person_success client_ip=%s tenant_id=%s contact_id=%s",
+        client_ip,
+        tenant_id,
+        contact_id,
+    )
+    return None
+
+
+# Workshop endpoints
+@app.post("/tenants/{tenant_id}/workshops", response_model=schemas.WorkshopResponse, status_code=201)
+def create_workshop(
+    tenant_id: int,
+    workshop: schemas.WorkshopCreate,
+    db: Session = Depends(get_db),
+    request: Request = None,
+):
+    if workshop.tenant_id != tenant_id:
+        raise HTTPException(status_code=400, detail="Tenant ID mismatch")
+
+    client_ip = get_client_ip(request)
+    security_logger.info(
+        "SECURITY_EVENT=create_workshop client_ip=%s tenant_id=%s description=%s",
+        client_ip,
+        tenant_id,
+        workshop.description,
+    )
+    return crud.create_workshop(db=db, workshop=workshop)
+
+
+@app.get("/tenants/{tenant_id}/workshops", response_model=List[schemas.WorkshopResponse])
+def list_workshops(
+    tenant_id: int,
+    db: Session = Depends(get_db),
+    request: Request = None,
+):
+    security_logger.info(
+        "SECURITY_EVENT=list_workshops client_ip=%s tenant_id=%s",
+        get_client_ip(request),
+        tenant_id,
+    )
+    return crud.get_workshops_by_tenant(db=db, tenant_id=tenant_id)
+
+
+@app.get("/tenants/{tenant_id}/workshops/{workshop_id}", response_model=schemas.WorkshopResponse)
+def read_workshop(
+    tenant_id: int,
+    workshop_id: int,
+    db: Session = Depends(get_db),
+    request: Request = None,
+):
+    client_ip = get_client_ip(request)
+    db_workshop = crud.get_workshop(db=db, workshop_id=workshop_id)
+    if db_workshop is None or db_workshop.tenant_id != tenant_id:
+        security_logger.warning(
+            "SECURITY_EVENT=read_workshop_failed client_ip=%s tenant_id=%s workshop_id=%s",
+            client_ip,
+            tenant_id,
+            workshop_id,
+        )
+        raise HTTPException(status_code=404, detail="Workshop not found")
+
+    security_logger.info(
+        "SECURITY_EVENT=read_workshop_success client_ip=%s tenant_id=%s workshop_id=%s",
+        client_ip,
+        tenant_id,
+        workshop_id,
+    )
+    return db_workshop
+
+
+@app.put("/tenants/{tenant_id}/workshops/{workshop_id}", response_model=schemas.WorkshopResponse)
+def update_workshop(
+    tenant_id: int,
+    workshop_id: int,
+    workshop: schemas.WorkshopUpdate,
+    db: Session = Depends(get_db),
+    request: Request = None,
+):
+    client_ip = get_client_ip(request)
+    db_workshop = crud.get_workshop(db=db, workshop_id=workshop_id)
+    if db_workshop is None or db_workshop.tenant_id != tenant_id:
+        security_logger.warning(
+            "SECURITY_EVENT=update_workshop_failed client_ip=%s tenant_id=%s workshop_id=%s",
+            client_ip,
+            tenant_id,
+            workshop_id,
+        )
+        raise HTTPException(status_code=404, detail="Workshop not found")
+
+    updated_workshop = crud.update_workshop(db=db, workshop_id=workshop_id, workshop_update=workshop)
+    security_logger.info(
+        "SECURITY_EVENT=update_workshop_success client_ip=%s tenant_id=%s workshop_id=%s",
+        client_ip,
+        tenant_id,
+        workshop_id,
+    )
+    return updated_workshop
+
+
+@app.delete("/tenants/{tenant_id}/workshops/{workshop_id}", status_code=204)
+def delete_workshop(
+    tenant_id: int,
+    workshop_id: int,
+    db: Session = Depends(get_db),
+    request: Request = None,
+):
+    client_ip = get_client_ip(request)
+    db_workshop = crud.get_workshop(db=db, workshop_id=workshop_id)
+    if db_workshop is None or db_workshop.tenant_id != tenant_id:
+        security_logger.warning(
+            "SECURITY_EVENT=delete_workshop_failed client_ip=%s tenant_id=%s workshop_id=%s",
+            client_ip,
+            tenant_id,
+            workshop_id,
+        )
+        raise HTTPException(status_code=404, detail="Workshop not found")
+
+    deleted = crud.delete_workshop(db=db, workshop_id=workshop_id)
+    security_logger.info(
+        "SECURITY_EVENT=delete_workshop_success client_ip=%s tenant_id=%s workshop_id=%s",
+        client_ip,
+        tenant_id,
+        workshop_id,
+    )
+    return None
+
+
+# Course endpoints
+@app.post("/tenants/{tenant_id}/workshops/{workshop_id}/courses", response_model=schemas.CourseResponse, status_code=201)
+def create_course(
+    tenant_id: int,
+    workshop_id: int,
+    course: schemas.CourseCreate,
+    db: Session = Depends(get_db),
+    request: Request = None,
+):
+    if course.workshop_id != workshop_id:
+        raise HTTPException(status_code=400, detail="Workshop ID mismatch")
+
+    # Verify workshop belongs to tenant
+    db_workshop = crud.get_workshop(db=db, workshop_id=workshop_id)
+    if db_workshop is None or db_workshop.tenant_id != tenant_id:
+        raise HTTPException(status_code=404, detail="Workshop not found")
+
+    client_ip = get_client_ip(request)
+    security_logger.info(
+        "SECURITY_EVENT=create_course client_ip=%s tenant_id=%s workshop_id=%s name=%s",
+        client_ip,
+        tenant_id,
+        workshop_id,
+        course.name,
+    )
+    return crud.create_course(db=db, course=course)
+
+
+@app.get("/tenants/{tenant_id}/workshops/{workshop_id}/courses", response_model=List[schemas.CourseResponse])
+def list_courses(
+    tenant_id: int,
+    workshop_id: int,
+    db: Session = Depends(get_db),
+    request: Request = None,
+):
+    # Verify workshop belongs to tenant
+    db_workshop = crud.get_workshop(db=db, workshop_id=workshop_id)
+    if db_workshop is None or db_workshop.tenant_id != tenant_id:
+        raise HTTPException(status_code=404, detail="Workshop not found")
+
+    security_logger.info(
+        "SECURITY_EVENT=list_courses client_ip=%s tenant_id=%s workshop_id=%s",
+        get_client_ip(request),
+        tenant_id,
+        workshop_id,
+    )
+    return crud.get_courses_by_workshop(db=db, workshop_id=workshop_id)
+
+
+@app.get("/tenants/{tenant_id}/workshops/{workshop_id}/courses/{course_id}", response_model=schemas.CourseResponse)
+def read_course(
+    tenant_id: int,
+    workshop_id: int,
+    course_id: int,
+    db: Session = Depends(get_db),
+    request: Request = None,
+):
+    client_ip = get_client_ip(request)
+    db_course = crud.get_course(db=db, course_id=course_id)
+    if db_course is None or db_course.workshop_id != workshop_id:
+        security_logger.warning(
+            "SECURITY_EVENT=read_course_failed client_ip=%s tenant_id=%s workshop_id=%s course_id=%s",
+            client_ip,
+            tenant_id,
+            workshop_id,
+            course_id,
+        )
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    # Verify workshop belongs to tenant
+    db_workshop = crud.get_workshop(db=db, workshop_id=workshop_id)
+    if db_workshop is None or db_workshop.tenant_id != tenant_id:
+        raise HTTPException(status_code=404, detail="Workshop not found")
+
+    security_logger.info(
+        "SECURITY_EVENT=read_course_success client_ip=%s tenant_id=%s workshop_id=%s course_id=%s",
+        client_ip,
+        tenant_id,
+        workshop_id,
+        course_id,
+    )
+    return db_course
+
+
+@app.put("/tenants/{tenant_id}/workshops/{workshop_id}/courses/{course_id}", response_model=schemas.CourseResponse)
+def update_course(
+    tenant_id: int,
+    workshop_id: int,
+    course_id: int,
+    course: schemas.CourseUpdate,
+    db: Session = Depends(get_db),
+    request: Request = None,
+):
+    client_ip = get_client_ip(request)
+    db_course = crud.get_course(db=db, course_id=course_id)
+    if db_course is None or db_course.workshop_id != workshop_id:
+        security_logger.warning(
+            "SECURITY_EVENT=update_course_failed client_ip=%s tenant_id=%s workshop_id=%s course_id=%s",
+            client_ip,
+            tenant_id,
+            workshop_id,
+            course_id,
+        )
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    # Verify workshop belongs to tenant
+    db_workshop = crud.get_workshop(db=db, workshop_id=workshop_id)
+    if db_workshop is None or db_workshop.tenant_id != tenant_id:
+        raise HTTPException(status_code=404, detail="Workshop not found")
+
+    updated_course = crud.update_course(db=db, course_id=course_id, course_update=course)
+    security_logger.info(
+        "SECURITY_EVENT=update_course_success client_ip=%s tenant_id=%s workshop_id=%s course_id=%s",
+        client_ip,
+        tenant_id,
+        workshop_id,
+        course_id,
+    )
+    return updated_course
+
+
+@app.delete("/tenants/{tenant_id}/workshops/{workshop_id}/courses/{course_id}", status_code=204)
+def delete_course(
+    tenant_id: int,
+    workshop_id: int,
+    course_id: int,
+    db: Session = Depends(get_db),
+    request: Request = None,
+):
+    client_ip = get_client_ip(request)
+    db_course = crud.get_course(db=db, course_id=course_id)
+    if db_course is None or db_course.workshop_id != workshop_id:
+        security_logger.warning(
+            "SECURITY_EVENT=delete_course_failed client_ip=%s tenant_id=%s workshop_id=%s course_id=%s",
+            client_ip,
+            tenant_id,
+            workshop_id,
+            course_id,
+        )
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    # Verify workshop belongs to tenant
+    db_workshop = crud.get_workshop(db=db, workshop_id=workshop_id)
+    if db_workshop is None or db_workshop.tenant_id != tenant_id:
+        raise HTTPException(status_code=404, detail="Workshop not found")
+
+    deleted = crud.delete_course(db=db, course_id=course_id)
+    security_logger.info(
+        "SECURITY_EVENT=delete_course_success client_ip=%s tenant_id=%s workshop_id=%s course_id=%s",
+        client_ip,
+        tenant_id,
+        workshop_id,
+        course_id,
+    )
+    return None
+
+
+# Document endpoints
+@app.post("/tenants/{tenant_id}/documents", response_model=schemas.DocumentResponse, status_code=201)
 def create_document(
-    customer_id: str = Form(...),
+    tenant_id: int,
     title: str = Form(...),
     short_description: str = Form(...),
     document: UploadFile = File(...),
@@ -178,77 +573,99 @@ def create_document(
         raise HTTPException(status_code=400, detail="Document must be a PDF file.")
 
     document_bytes = document.file.read()
-    created_document = crud.create_document(
-        db=db,
-        customer_id=customer_id,
+    document_data = schemas.DocumentCreate(
         title=title,
         short_description=short_description,
+        tenant_id=tenant_id,
+    )
+    created_document = crud.create_document(
+        db=db,
+        document=document_data,
         document_bytes=document_bytes,
     )
 
     security_logger.info(
-        "SECURITY_EVENT=create_document client_ip=%s title=%s customer_id=%s",
+        "SECURITY_EVENT=create_document client_ip=%s tenant_id=%s title=%s",
         get_client_ip(request),
+        tenant_id,
         title,
-        customer_id,
     )
     return created_document
 
 
-@app.get("/documents", response_model=list[schemas.DocumentResponse])
-def read_documents(db: Session = Depends(get_db), request: Request = None):
+@app.get("/tenants/{tenant_id}/documents", response_model=List[schemas.DocumentResponse])
+def list_documents(
+    tenant_id: int,
+    db: Session = Depends(get_db),
+    request: Request = None,
+):
     security_logger.info(
-        "SECURITY_EVENT=list_documents client_ip=%s path=%s",
+        "SECURITY_EVENT=list_documents client_ip=%s tenant_id=%s",
         get_client_ip(request),
-        request.url.path,
+        tenant_id,
     )
-    return crud.get_documents(db=db)
+    return crud.get_documents_by_tenant(db=db, tenant_id=tenant_id)
 
 
-@app.get("/documents/{document_id}")
-def read_document_pdf(
+@app.get("/tenants/{tenant_id}/documents/{document_id}", response_class=StreamingResponse)
+def read_document(
+    tenant_id: int,
     document_id: int,
     db: Session = Depends(get_db),
     request: Request = None,
 ):
+    client_ip = get_client_ip(request)
     db_document = crud.get_document(db=db, document_id=document_id)
-    if db_document is None:
+    if db_document is None or db_document.tenant_id != tenant_id:
         security_logger.warning(
-            "SECURITY_EVENT=read_document_failed client_ip=%s document_id=%s",
-            get_client_ip(request),
+            "SECURITY_EVENT=read_document_failed client_ip=%s tenant_id=%s document_id=%s",
+            client_ip,
+            tenant_id,
             document_id,
         )
         raise HTTPException(status_code=404, detail="Document not found")
 
     security_logger.info(
-        "SECURITY_EVENT=read_document_success client_ip=%s document_id=%s",
-        get_client_ip(request),
+        "SECURITY_EVENT=read_document_success client_ip=%s tenant_id=%s document_id=%s",
+        client_ip,
+        tenant_id,
         document_id,
     )
-    pdf_stream = io.BytesIO(db_document.document)
-    response = StreamingResponse(pdf_stream, media_type="application/pdf")
-    response.headers["Content-Disposition"] = f'inline; filename="{db_document.title}.pdf"'
-    return response
+    return StreamingResponse(
+        io.BytesIO(db_document.document),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={db_document.title}.pdf"},
+    )
 
 
-@app.put("/documents/{document_id}", response_model=schemas.DocumentResponse)
+@app.put("/tenants/{tenant_id}/documents/{document_id}", response_model=schemas.DocumentResponse)
 def update_document(
+    tenant_id: int,
     document_id: int,
-    customer_id: Optional[str] = Form(None),
-    title: Optional[str] = Form(None),
-    short_description: Optional[str] = Form(None),
-    document: UploadFile | None = File(None),
+    title: str = Form(...),
+    short_description: str = Form(...),
+    document: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
     request: Request = None,
 ):
+    client_ip = get_client_ip(request)
+    db_document = crud.get_document(db=db, document_id=document_id)
+    if db_document is None or db_document.tenant_id != tenant_id:
+        security_logger.warning(
+            "SECURITY_EVENT=update_document_failed client_ip=%s tenant_id=%s document_id=%s",
+            client_ip,
+            tenant_id,
+            document_id,
+        )
+        raise HTTPException(status_code=404, detail="Document not found")
+
     document_bytes = None
-    if document is not None:
+    if document:
         if document.content_type != "application/pdf":
             raise HTTPException(status_code=400, detail="Document must be a PDF file.")
         document_bytes = document.file.read()
 
     document_update = schemas.DocumentUpdate(
-        customer_id=customer_id,
         title=title,
         short_description=short_description,
     )
@@ -258,42 +675,38 @@ def update_document(
         document_update=document_update,
         document_bytes=document_bytes,
     )
-
-    if updated_document is None:
-        security_logger.warning(
-            "SECURITY_EVENT=update_document_failed client_ip=%s document_id=%s",
-            get_client_ip(request),
-            document_id,
-        )
-        raise HTTPException(status_code=404, detail="Document not found")
-
     security_logger.info(
-        "SECURITY_EVENT=update_document_success client_ip=%s document_id=%s",
-        get_client_ip(request),
+        "SECURITY_EVENT=update_document_success client_ip=%s tenant_id=%s document_id=%s",
+        client_ip,
+        tenant_id,
         document_id,
     )
     return updated_document
 
 
-@app.delete("/documents/{document_id}", status_code=204)
+@app.delete("/tenants/{tenant_id}/documents/{document_id}", status_code=204)
 def delete_document(
+    tenant_id: int,
     document_id: int,
     db: Session = Depends(get_db),
     request: Request = None,
 ):
     client_ip = get_client_ip(request)
-    deleted = crud.delete_document(db=db, document_id=document_id)
-    if not deleted:
+    db_document = crud.get_document(db=db, document_id=document_id)
+    if db_document is None or db_document.tenant_id != tenant_id:
         security_logger.warning(
-            "SECURITY_EVENT=delete_document_failed client_ip=%s document_id=%s",
+            "SECURITY_EVENT=delete_document_failed client_ip=%s tenant_id=%s document_id=%s",
             client_ip,
+            tenant_id,
             document_id,
         )
         raise HTTPException(status_code=404, detail="Document not found")
 
+    deleted = crud.delete_document(db=db, document_id=document_id)
     security_logger.info(
-        "SECURITY_EVENT=delete_document_success client_ip=%s document_id=%s",
+        "SECURITY_EVENT=delete_document_success client_ip=%s tenant_id=%s document_id=%s",
         client_ip,
+        tenant_id,
         document_id,
     )
     return None
