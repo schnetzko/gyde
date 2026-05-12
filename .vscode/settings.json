@@ -3,9 +3,22 @@
   "python.testing.pytestEnabled": true,
   "python.testing.pytestArgs": [
     "tests",
-    "-v"
+    "-v",
+    "--cov=src/gyde",
+    "--cov-report=term-missing"
   ],
   "python.linting.enabled": true,
   "python.linting.pylintEnabled": false,
-  "python.formatting.provider": "black"
+  "python.formatting.provider": "black",
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.black-formatter"
+  },
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/*.pyc": true,
+    ".pytest_cache": true,
+    ".coverage": true,
+    "htmlcov": false
+  },
+  "coverage-gutters.coverageFileNames": ["coverage.json"]
 }

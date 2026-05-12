@@ -1,0 +1,74 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Run Tests with Coverage",
+      "type": "shell",
+      "command": "uv",
+      "args": [
+        "run",
+        "pytest",
+        "tests",
+        "-v",
+        "--cov=src/gyde",
+        "--cov-report=html",
+        "--cov-report=term-missing",
+        "--cov-report=json"
+      ],
+      "cwd": "${workspaceFolder}",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": [],
+      "group": {
+        "kind": "test",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "Open Coverage Report",
+      "type": "shell",
+      "command": "open",
+      "args": [
+        "${workspaceFolder}/htmlcov/index.html"
+      ],
+      "osx": {
+        "command": "open"
+      },
+      "linux": {
+        "command": "xdg-open"
+      },
+      "windows": {
+        "command": "cmd",
+        "args": [
+          "/c",
+          "start",
+          "${workspaceFolder}\\htmlcov\\index.html"
+        ]
+      },
+      "presentation": {
+        "reveal": "silent",
+        "panel": "new"
+      },
+      "problemMatcher": [],
+      "group": {
+        "kind": "test",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "Run Tests + Open Coverage",
+      "dependsOn": [
+        "Run Tests with Coverage",
+        "Open Coverage Report"
+      ],
+      "dependsOrder": "sequence",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    }
+  ]
+}
