@@ -4,3 +4,9 @@ __pycache__/
 *.pyc
 .env
 build/
+
+# Coverage reports
+.coverage
+coverage.json
+htmlcov/
+coverage/
